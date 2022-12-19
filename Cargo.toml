@@ -1,0 +1,8 @@
+[workspace]
+
+members = [
+"library/container/flv",
+"protocol/rtmp",
+"client",
+"server",
+]
