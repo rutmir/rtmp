@@ -2,7 +2,6 @@ use std::{
     error::Error,
     sync::Arc
 };
-use uuid::Uuid;
 use tokio::sync::Mutex;
 use rtmp::{
     channels::{
@@ -29,29 +28,29 @@ use log4rs::{
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    // env_logger::init();
-    let stdout = ConsoleAppender::builder().build();
+    let _stdout = ConsoleAppender::builder()
+        .encoder(Box::new(PatternEncoder::new("{d(%Y-%m-%d %H:%M:%S)} {l} {t} - {m}{n}")))
+        .build();
 
-    let logfile = FileAppender::builder()
-        .encoder(Box::new(PatternEncoder::new("{d} - {m}{n}")))
+    let _logfile = FileAppender::builder()
+        .encoder(Box::new(PatternEncoder::new("{d(%Y-%m-%d %H:%M:%S)} {l} {t} - {m}{n}")))
         .build("log/rtmp.log")
         .unwrap();
 
     let config = Config::builder()
         .appender(Appender::builder()
             .filter(Box::new(ThresholdFilter::new(LevelFilter::Info)))
-            .build("stdout", Box::new(stdout)))
-        //.appender(Appender::builder()
-        //    .build("logfile", Box::new(logfile)))
-        .build(Root::builder()
-            .appender("stdout")
-        //    .appender("logfile")
-            .build(LevelFilter::Info))
+            .build("stdout", Box::new(_stdout))
+        )
+        .appender(Appender::builder()
+            .filter(Box::new(ThresholdFilter::new(LevelFilter::Warn)))
+            .build("logfile", Box::new(_logfile))
+        )
+        .build(Root::builder().appender("stdout").appender("logfile").build(LevelFilter::Info))
         .unwrap();
 
     _ = log4rs::init_config(config).unwrap();
 
-    // let subscriber_id = Uuid::new_v4();
     let listen_port = 1935;
     let address = format!("0.0.0.0:{port}", port = listen_port);
     let mut channel = ChannelsManager::new();
@@ -70,15 +69,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 Ok(message) => {
                     match message {
                         ClientEvent::Publish { app_name, stream_name } => {
-                            log::warn!("!!!!!!!!!!!!!!!!! client event Publish - app: {}, stream: {}\n", app_name, stream_name);
+                            log::debug!("!!!!!!!!!!!!!!!!! client event Publish - app: {}, stream: {}\n", app_name, stream_name);
                             match RtmpClient::new(
                                 format!("localhost:{port}", port = listen_port),
                                 app_name,
                                 stream_name,
                             ).run().await {
-                                Ok(()) => log::warn!("!!! RTMP Client completed"),
-                                Err(error) => log::error!("!!!! !!!! subscribtion error: {:?}\n", error),
+                                Ok(()) => log::info!("RTMP Client completed"),
+                                Err(error) => log::error!("subscribtion error: {:?}\n", error),
                             }
+
                             // let mut lock = channel_mx.lock().await;
                             // let subscription = lock.subscribe(&app_name, &stream_name, SessionInfo{
                             //     subscriber_id,
@@ -107,13 +107,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             // }
                         },
                         ClientEvent::UnPublish { app_name, stream_name } => {
-                            log::warn!("!!!!!!!!!!!!!!!!! client event UnPublish - app: {}, stream: {}\n", app_name, stream_name);        
+                            log::debug!("!!!!!!!!!!!!!!!!! client event UnPublish - app: {}, stream: {}\n", app_name, stream_name);        
                         },
                         ClientEvent::Subscribe { app_name, stream_name } => {
-                            log::warn!("!!!!!!!!!!!!!!!!! client event Subscribe - app: {}, stream: {}\n", app_name, stream_name);        
+                            log::debug!("!!!!!!!!!!!!!!!!! client event Subscribe - app: {}, stream: {}\n", app_name, stream_name);        
                         },
                         ClientEvent::UnSubscribe  { app_name, stream_name } => {
-                            log::warn!("!!!!!!!!!!!!!!!!! client event UnSubscribe - app: {}, stream: {}\n", app_name, stream_name);        
+                            log::debug!("!!!!!!!!!!!!!!!!! client event UnSubscribe - app: {}, stream: {}\n", app_name, stream_name);        
                         }
                     }
                 },
